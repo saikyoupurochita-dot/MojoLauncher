@@ -52,6 +52,10 @@ public class ControlDrawer extends ControlButton {
         areButtonsVisible = !areButtonsVisible;
         int visibility = areButtonsVisible ? VISIBLE : GONE;
         for(ControlButton button : buttons){
+            // A held sub-button would stay pressed after being hidden
+            if(!areButtonsVisible && !button.getProperties().isToggle && button.isActivated()) {
+                button.sendKeyPresses(false);
+            }
             button.getControlView().setVisibility(visibility);
         }
     }
@@ -139,11 +143,11 @@ public class ControlDrawer extends ControlButton {
     @Override
     public boolean onTouchEvent(MotionEvent event) {
         if(!getControlLayoutParent().getModifiable()){
-            switch (event.getActionMasked()){
-                case MotionEvent.ACTION_UP: // 1
-                case MotionEvent.ACTION_POINTER_UP: // 6
-                    switchButtonVisibility();
-                    break;
+            // Only the final lift inside the drawer toggles it. Secondary pointers and drags that end outside are ignored
+            if(event.getActionMasked() == MotionEvent.ACTION_UP
+                    && event.getX() >= 0 && event.getX() <= getWidth()
+                    && event.getY() >= 0 && event.getY() <= getHeight()) {
+                switchButtonVisibility();
             }
             return true;
         }

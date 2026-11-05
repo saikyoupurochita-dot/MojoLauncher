@@ -356,6 +356,10 @@ public class ControlLayout extends FrameLayout {
 		return x > view.getLeft() && x < view.getRight() && y > view.getTop() && y < view.getBottom();
 	}
 
+	private static boolean isShown(ControlInterface button) {
+		return button.getControlView().getVisibility() == View.VISIBLE;
+	}
+
 	//While this is called onTouch, this should only be called from a ControlButton.
 	public void onTouch(View v, MotionEvent ev) {
 		int action = ev.getActionMasked();
@@ -378,7 +382,7 @@ public class ControlLayout extends FrameLayout {
 
 		//Optimization pass to avoid looking at all children again
 		if (lastControlButton != null) {
-			if (eventInViewBounds(ev, lastControlButton.getControlView())) {
+			if (isShown(lastControlButton) && eventInViewBounds(ev, lastControlButton.getControlView())) {
 				return;
 			}
 		}
@@ -387,9 +391,21 @@ public class ControlLayout extends FrameLayout {
 		if (lastControlButton != null) lastControlButton.handleReleased();
 		mapTable.remove(v);
 
+		// The touched button wins over buttons overlapping it
+		if (action == MotionEvent.ACTION_DOWN && v instanceof ControlInterface && !(v instanceof ControlDrawer)) {
+			ControlInterface self = (ControlInterface) v;
+			if (self.getProperties().isSwipeable && isShown(self) && eventInViewBounds(ev, v)) {
+				self.handlePressed();
+				mapTable.put(v, self);
+				return;
+			}
+		}
+
 		// Update the state of all swipeable buttons
 		for (ControlInterface button : getButtonChildren()) {
 			if (!button.getProperties().isSwipeable) continue;
+			// Hidden views keep their old bounds, skip them so collapsed drawers and hidden buttons don't trigger
+			if (!isShown(button) || button instanceof ControlDrawer) continue;
 			if (eventInViewBounds(ev, button.getControlView())) {
 				//Press the new key
 				if (!button.equals(lastControlButton)) {
